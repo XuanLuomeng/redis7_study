@@ -5,6 +5,8 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 /**
+ * 连接6379的util
+ *
  * @author LuoXuanwei
  * @date 2023/8/15 1:02
  */

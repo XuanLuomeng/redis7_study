@@ -1,48 +1,81 @@
 package com.gduf.redis7_study.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.bind.annotation.RequestHeader;
-import springfox.documentation.RequestHandler;
+import org.springframework.util.ReflectionUtils;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 import springfox.documentation.builders.ApiInfoBuilder;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
+import springfox.documentation.oas.annotations.EnableOpenApi;
 import springfox.documentation.service.ApiInfo;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
+import springfox.documentation.spring.web.plugins.WebMvcRequestHandlerProvider;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author LuoXuanwei
  * @date 2023/8/11 0:28
  */
+@EnableOpenApi
 @Configuration
-@EnableSwagger2
 public class SwaggerConfig {
-    @Value("${spring.swagger2.enabled}")
-    private boolean enabled;
 
     @Bean
     public Docket createRestApi(){
-        return new Docket(DocumentationType.SWAGGER_2)
+        System.out.println("11111111111111111111111111111");
+        return new Docket(DocumentationType.OAS_30)
                 .apiInfo(apiInfo())
-                .enable(enabled)
                 .select()
-                .apis(RequestHandlerSelectors.basePackage("com.gduf.redis7_study"))
+                .apis(RequestHandlerSelectors.withMethodAnnotation(ApiOperation.class))
                 .paths(PathSelectors.any())
                 .build();
-    }
 
-    public ApiInfo apiInfo(){
+    }
+    private ApiInfo apiInfo(){
         return new ApiInfoBuilder()
-                .title("springboot利用swagger2构建api接口文档 "+"\t"+ DateTimeFormatter.ofPattern("yyyy-MM-dd").format(LocalDateTime.now()))
-                .description("springboot+redis整合,有问题给管理员阳哥邮件:zzyybs@126.com")
+                .title("Swagger3接口文档")
+                .description("前后端分离的接口文档")
                 .version("1.0")
-                .termsOfServiceUrl("https://www.atguigu.com/")
                 .build();
+    }
+    @Bean
+    public static BeanPostProcessor springfoxHandlerProviderBeanPostProcessor() {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+                if (bean instanceof WebMvcRequestHandlerProvider) {
+                    customizeSpringfoxHandlerMappings(getHandlerMappings(bean));
+                }
+                return bean;
+            }
+
+            private <T extends RequestMappingInfoHandlerMapping> void customizeSpringfoxHandlerMappings(
+                    List<T> mappings) {
+                List<T> copy = mappings.stream().filter(mapping -> mapping.getPatternParser() == null)
+                        .collect(Collectors.toList());
+                mappings.clear();
+                mappings.addAll(copy);
+            }
+
+            @SuppressWarnings("unchecked")
+            private List<RequestMappingInfoHandlerMapping> getHandlerMappings(Object bean) {
+                try {
+                    Field field = ReflectionUtils.findField(bean.getClass(), "handlerMappings");
+                    field.setAccessible(true);
+                    return (List<RequestMappingInfoHandlerMapping>) field.get(bean);
+                }
+                catch (IllegalArgumentException | IllegalAccessException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
     }
 }
